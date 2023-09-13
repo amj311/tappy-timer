@@ -129,6 +129,12 @@ export default {
 		>
 			Start
 		</div>
+		<details class="settings"
+			v-if="mode === 'menu'"
+		>
+			<summary>Settings</summary>
+			<label>Tap Value: <input type="number" v-model="tapValue"></label>
+		</details>
 		<div class="reset"
 			v-if="mode === 'timer'"
 			:class="{ confirming: confirmingReset }"
@@ -212,6 +218,29 @@ export default {
 	font-weight: bold;
 	border-radius: 2em;
 	font-size: 2em;
+}
+
+.settings {
+	position: absolute;
+	bottom: 3rem;
+	left: 50%;
+	transform: translateX(-50%);
+    text-align: center;
+	width: 100%;
+	transition: 500ms;
+}
+
+.settings[open] {
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	transform: none;
+    background: var(--color-background);
+}
+
+.settings summary {
+	font-size: 1.5em;
 }
 
 .svg-wrapper {
