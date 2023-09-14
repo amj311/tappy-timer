@@ -171,7 +171,7 @@ export default {
 							</select>
 						</label>
 						<label v-if="tapMode === 'additive'">
-							Tap Value:
+							Increment:
 							<DurationInput
 								:value="tapValue"
 								@didChange="v => tapValue = v"
