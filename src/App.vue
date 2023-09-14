@@ -189,6 +189,11 @@ export default {
 			</div>
 			
 		</div>
+		<div class="tap-message"
+			v-if="view === 'timer'"
+		>
+			Tap anywhere to add time
+		</div>
 		<div class="reset"
 			v-if="view === 'timer'"
 			:class="{ confirming: confirmingReset }"
@@ -301,6 +306,12 @@ export default {
 	justify-content: space-between;
 	align-items: center;
 	gap: 4em;
+}
+
+.tap-message {
+	text-align: center;
+	position: relative;
+	top: 2em;
 }
 
 .svg-wrapper {
