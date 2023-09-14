@@ -1,6 +1,6 @@
 <script>
 // import HelloWorld from './components/HelloWorld.vue'
-// import TheWelcome from './components/TheWelcome.vue'
+import DurationInput from './components/DurationInput.vue'
 
 export default {
 	name: 'App',
@@ -9,16 +9,20 @@ export default {
 			timeEnd: null,
 			totalTime: 0,
 			tapValue: 30 * 1000,
+			tapMode: 'additive',
+			maxTime: null,
 			timeRemaining: 0,
 			timeout: null,
 			animation: null,
 			confirmingReset: false,
-			mode: 'menu'
+			addingTime: false,
+			view: 'menu'
 		}
 	},
 	components: {
 		// HelloWorld,
 		// TheWelcome,
+		DurationInput
 	},
 	beforeMount() {
 		this.animate();
@@ -29,7 +33,7 @@ export default {
 
 	methods: {
 		start() {
-			this.mode = 'timer';
+			this.view = 'timer';
 			this.addTime();
 		},
 		onClickReset() {
@@ -45,7 +49,7 @@ export default {
 			}
 		},
 		reset() {
-			this.mode = 'menu';
+			this.view = 'menu';
 			this.timeEnd = null;
 			this.timeRemaining = 0;
 			this.totalTime = 0;
@@ -55,9 +59,20 @@ export default {
 		addTime() {
 			clearTimeout(this.timeout);
 
-			this.timeEnd = (this.timeEnd || Date.now()) + this.tapValue;
+			const maxEnd = this.maxTime ? this.maxTime + Date.now() : undefined
+			if (this.tapMode === 'additive') {
+				this.timeEnd = Math.min(maxEnd || Infinity, (this.timeEnd || Date.now()) + this.tapValue);
+			}
+			else if (this.tapMode === 'maximum') {
+				this.timeEnd = maxEnd;
+			}
 			this.totalTime = this.timeEnd - Date.now();
 			this.timeout = setTimeout(this.onTimeEnd, this.timeEnd - Date.now());
+
+			this.addingTime = true;
+			setTimeout(() => {
+				this.addingTime = false;
+			}, 150);
 		},
 		onTimeEnd() {
 			this.timeEnd = null;
@@ -104,9 +119,9 @@ export default {
 		},
 		timerColor() {
 			if (!this.timeRemaining) {
-				return 'black';
+				return 'var(--color-text)';
 			}
-			return this.timeRemaining <= 11000 ? 'red' : 'green'
+			return this.timeRemaining <= Math.min(11000, this.totalTime / 2) ? 'var(--red)' : 'var(--green)'
 		}
 	}
 }
@@ -114,29 +129,68 @@ export default {
 </script>`
 
 <template>
-	<div class="timer-container">
-		<div class="title"
-			v-if="mode === 'menu'"
+	<div class="app-container">
+		<div
+			class="menu"
+			v-if="view === 'menu'"
 		>
-			TAPPY TIMER
+			<div :style="{
+				height: '50%',
+				display: 'flex',
+				alignItems: 'center',
+			}">
+				<h1 class="title">
+					TAPPY TIMER
+				</h1>
+			</div>
+			<div class="start-button"
+				v-if="view === 'menu'"
+				@click="start"
+				:style="{
+					filter: `drop-shadow(0 0 50px var(--green))`
+				}">
+				Start
+			</div>
+
+			<div :style="{
+				height: '50%',
+				display: 'flex',
+				alignItems: 'center',
+			}">
+				<details class="settings"
+					v-if="view === 'menu'">
+					<summary>Settings</summary>
+					<div class="settings-wrapper">
+						<label>
+							Mode:
+							<select
+								v-model="tapMode"
+							>
+								<option key="additive" value="additive">Additive</option>
+								<option key="maximum" value="maximum">Maximum</option>
+							</select>
+						</label>
+						<label v-if="tapMode === 'additive'">
+							Tap Value:
+							<DurationInput
+								:value="tapValue"
+								@didChange="v => tapValue = v"
+							/>
+						</label>
+						<label>
+							Max Time:
+							<DurationInput
+								:value="maxTime"
+								@didChange="v => maxTime = v"
+							/>
+						</label>
+					</div>
+			</details>
+			</div>
+			
 		</div>
-		<div class="start-button"
-			v-if="mode === 'menu'"
-			@click="start"
-			:style="{
-				filter: `drop-shadow(0 0 50px green)`
-			}"
-		>
-			Start
-		</div>
-		<details class="settings"
-			v-if="mode === 'menu'"
-		>
-			<summary>Settings</summary>
-			<label>Tap Value: <input type="number" v-model="tapValue"></label>
-		</details>
 		<div class="reset"
-			v-if="mode === 'timer'"
+			v-if="view === 'timer'"
 			:class="{ confirming: confirmingReset }"
 			@click.stop="onClickReset">
 			<span class="icon fa fa-times"></span>
@@ -144,11 +198,9 @@ export default {
 		</div>
 		<Transition>
 			<div class="svg-wrapper"
-				v-if="mode === 'timer'"
-				@click="addTime"
-				onmousedown="this.classList.add('active')"
-				onmouseup="this.classList.remove('active')">
-
+				:class="{ active: addingTime }"
+				v-if="view === 'timer'"
+				@click="addTime">
 				<svg viewBox="0 0 200 200"
 					preserve-aspect-ratio
 					:style="{
@@ -157,12 +209,7 @@ export default {
 					<circle cx="100"
 						cy="100"
 						r="80"
-						fill="#181818" />
-					<circle cx="100"
-						cy="100"
-						r="80"
-						fill="none"
-						stroke="#555"
+						fill="var(--color-background)"
 						stroke-width="10" />
 					<circle cx="100"
 						cy="100"
@@ -178,7 +225,7 @@ export default {
 						dominant-baseline="middle"
 						text-anchor="middle"
 						font-size="24"
-						fill="#ffffff">
+						fill="var(--color-heading)">
 						{{ fmtMSS(timeRemaining) }}
 					</text>
 				</svg>
@@ -188,44 +235,43 @@ export default {
 </template>
 
 <style scoped>
-.timer-container {
+.app-container {
 	position: relative;
 	width: 100vw;
-	height: 100vh;
+	height: calc(100vh - 50px);
 	user-select: none;
 }
 
+.menu {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	height: 100%;
+}
+
 .title {
-	position: absolute;
-	top: 3em;
-	left: 50%;
-	transform: translateX(-50%);
 	font-size: 3em;
 	font-weight: bold;
-    width: 100%;
-    text-align: center;
+	color: var(--color-heading);
 }
 
 .start-button {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-    text-align: center;
-	background-color: green;
+	text-align: center;
+	background-color: var(--green);
 	color: white;
-	padding: .5em 1.2em;
 	font-weight: bold;
-	border-radius: 2em;
+	border-radius: 50%;
 	font-size: 2em;
+	height: 5em;
+	width: 5em;
+	line-height: 5em;
+	z-index: 2;
+	cursor: pointer;
 }
 
 .settings {
-	position: absolute;
-	bottom: 3rem;
-	left: 50%;
-	transform: translateX(-50%);
-    text-align: center;
+	text-align: center;
 	width: 100%;
 	transition: 500ms;
 }
@@ -236,11 +282,25 @@ export default {
 	left: 0;
 	right: 0;
 	transform: none;
-    background: var(--color-background);
+	background: var(--color-background);
 }
 
 .settings summary {
 	font-size: 1.5em;
+}
+
+.settings-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: .5em;
+}
+
+.settings-wrapper label {
+	display: flex;
+	width: 100%;
+	justify-content: space-between;
+	align-items: center;
+	gap: 4em;
 }
 
 .svg-wrapper {
