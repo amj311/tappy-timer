@@ -73,12 +73,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
 #app {
 	display: flex;
 	flex-grow: 1;
