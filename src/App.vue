@@ -294,7 +294,7 @@ export default {
 .app-container {
 	position: relative;
 	width: 100vw;
-	height: calc(100vh - 75px);
+	height: calc(100vh - 50px);
 	user-select: none;
 }
 
@@ -318,11 +318,11 @@ export default {
 	color: white;
 	font-weight: bold;
 	border-radius: 50%;
-	font-size: 2em;
-	min-height: 6em;
-	min-width: 6em;
-	max-height: 6em;
-	max-width: 6em;
+	font-size: 2.5em;
+	min-height: 5em;
+	min-width: 5em;
+	max-height: 5em;
+	max-width: 5em;
 	z-index: 2;
 	cursor: pointer;
 	display: flex;
