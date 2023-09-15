@@ -293,7 +293,8 @@ export default {
 <style scoped>
 .app-container {
 	position: relative;
-	width: 100%;
+	width: 100vw;
+	height: calc(100vh - 75px);
 	user-select: none;
 }
 
