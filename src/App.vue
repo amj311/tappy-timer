@@ -1,6 +1,8 @@
 <script>
 // import HelloWorld from './components/HelloWorld.vue'
 import DurationInput from './components/DurationInput.vue'
+import soundsData from './sounds'
+const sounds = Object.fromEntries(soundsData.map(sound => [sound.name, { ...sound, audio: new Audio('/alarms/'+sound.filename)}]))
 
 export default {
 	name: 'App',
@@ -16,7 +18,10 @@ export default {
 			animation: null,
 			confirmingReset: false,
 			addingTime: false,
-			view: 'menu'
+			view: 'menu',
+			soundName: sounds['Classic'].name,
+			samplingAudio: null,
+			showSettings: false
 		}
 	},
 	components: {
@@ -33,11 +38,12 @@ export default {
 
 	methods: {
 		start() {
+			this.showSettings = false;
 			this.view = 'timer';
 			this.addTime();
 		},
 		onClickReset() {
-			if (this.confirmingReset) {
+			if (!this.timeRemaining || this.confirmingReset) {
 				this.reset();
 				this.confirmingReset = false;
 			}
@@ -55,9 +61,15 @@ export default {
 			this.totalTime = 0;
 			clearInterval(this.timeout);
 			cancelAnimationFrame(this.animate);
+			if (this.alarmAudio) {
+				this.alarmAudio.pause();
+			}
 		},
 		addTime() {
 			clearTimeout(this.timeout);
+			if (this.alarmAudio) {
+				this.alarmAudio.pause();
+			}
 
 			const maxEnd = this.maxTime ? this.maxTime + Date.now() : undefined
 			if (this.tapMode === 'additive') {
@@ -76,20 +88,14 @@ export default {
 		},
 		onTimeEnd() {
 			this.timeEnd = null;
-			console.log('end');
 			this.playAlarm();
 		},
 		playAlarm() {
-			const audioContext = new AudioContext();
-			const oscillator = audioContext.createOscillator();
-			oscillator.type = 'sine';
-			oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-
-			oscillator.connect(audioContext.destination);
-			oscillator.start();
-			setTimeout(() => {
-				oscillator.stop();
-			}, 2000); // Stop the alarm sound after 2 seconds
+			if (this.alarmAudio) {
+				this.alarmAudio.currentTime = 0;
+				this.alarmAudio.loop = true;
+				this.alarmAudio.play();
+			}
 		},
 		animate() {
 			this.updateTimer();
@@ -109,6 +115,26 @@ export default {
 			const milliseconds = duration.getUTCMilliseconds();
 			return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 		},
+		changeSound(event) {
+			const newSoundName = event.target.value;
+			this.stopSample();
+			this.soundName = newSoundName;
+		},
+		async sampleSound() {
+			if (this.samplingAudio) {
+				this.stopSample();
+			}
+			this.samplingAudio = sounds[this.soundName].audio;
+			await this.samplingAudio.play();
+			this.samplingAudio.addEventListener('ended', this.stopSample)
+		},
+		async stopSample() {
+			if(this.samplingAudio) {
+				this.samplingAudio.pause();
+				this.samplingAudio.currentTime = 0;
+				this.samplingAudio = null;
+			}
+		},
 	},
 	computed: {
 		remainingRatio() {
@@ -122,8 +148,12 @@ export default {
 				return 'var(--color-text)';
 			}
 			return this.timeRemaining <= Math.min(11000, this.totalTime / 2) ? 'var(--red)' : 'var(--green)'
-		}
-	}
+		},
+		sounds: () => sounds,
+		alarmAudio() {
+			return sounds[this.soundName]?.audio
+		},
+	},
 }
 
 </script>`
@@ -157,35 +187,56 @@ export default {
 				display: 'flex',
 				alignItems: 'center',
 			}">
-				<details class="settings"
-					v-if="view === 'menu'">
-					<summary>Settings</summary>
+				<div class="settings"
+					:class="{ open: showSettings}"
+					v-if="view === 'menu'"
+				>
+					<div class="settings-title"
+						@click="showSettings = !showSettings"
+					>
+						Settings
+						<span class="fa" :class="showSettings ? 'fa-chevron-down' : 'fa-chevron-right'"></span>
+					</div>
 					<div class="settings-wrapper">
-						<label>
-							Mode:
+						<div class="row">
+							<label>Sound:</label>
+							<span>
+								<span v-if="samplingAudio" class="fa fa-times"  @click="stopSample"></span>
+								<span v-else-if="soundName" class="fa fa-volume-up" @click="sampleSound"></span>
+								<select
+									:value="soundName"
+									@change="changeSound"
+								>
+									<option key="none" :value="null" label="None" />
+									<option v-for="sound in sounds" :key="sound.name" :value="sound.name">{{ sound.name }}</option>
+								</select>
+							</span>
+						</div>
+						<div class="row">
+							<label>Mode:</label>
 							<select
 								v-model="tapMode"
 							>
 								<option key="additive" value="additive">Additive</option>
 								<option key="maximum" value="maximum">Maximum</option>
 							</select>
-						</label>
-						<label v-if="tapMode === 'additive'">
-							Increment:
+						</div>
+						<div class="row" v-if="tapMode === 'additive'">
+							<label>Increment:</label>
 							<DurationInput
 								:value="tapValue"
 								@didChange="v => tapValue = v"
 							/>
-						</label>
-						<label>
-							Max Time:
+						</div>
+						<div class="row">
+							<label>Max Time:</label>
 							<DurationInput
 								:value="maxTime"
 								@didChange="v => maxTime = v"
 							/>
-						</label>
+						</div>
 					</div>
-			</details>
+				</div>
 			</div>
 			
 		</div>
@@ -268,11 +319,15 @@ export default {
 	font-weight: bold;
 	border-radius: 50%;
 	font-size: 2em;
-	height: 5em;
-	width: 5em;
-	line-height: 5em;
+	min-height: 6em;
+	min-width: 6em;
+	max-height: 6em;
+	max-width: 6em;
 	z-index: 2;
 	cursor: pointer;
+	display: flex;
+	place-content: center;
+	place-items: center;
 }
 
 .settings {
@@ -281,31 +336,49 @@ export default {
 	transition: 500ms;
 }
 
-.settings[open] {
-	top: 0;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	transform: none;
-	background: var(--color-background);
+
+.settings .settings-title {
+	font-size: 1.5em;
+	margin: .5em;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: .5em;
 }
 
-.settings summary {
-	font-size: 1.5em;
+.settings .settings-title .fa {
+	font-size: .75em;
 }
 
 .settings-wrapper {
 	display: flex;
 	flex-direction: column;
 	gap: .5em;
+	max-height: 0;
+	overflow: hidden;
+	transition: max-height 500ms;
 }
 
-.settings-wrapper label {
+.settings.open .settings-wrapper {
+	max-height: 100vh;
+}
+.settings-wrapper .row {
 	display: flex;
 	width: 100%;
 	justify-content: space-between;
 	align-items: center;
 	gap: 4em;
+}
+
+.settings .row .fa {
+	padding: .5em;
+	cursor: pointer;
+	margin-left: -1em;
+}
+
+.settings .row .fa:active {
+	transform: scale(1.2);
 }
 
 .tap-message {

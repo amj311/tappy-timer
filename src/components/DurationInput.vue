@@ -72,7 +72,7 @@ export default {
 <style scoped>
 input {
 	box-sizing: border-box;
-	width: 3em;
+	width: 2em;
 	text-align: center;
 }
 input::-webkit-outer-spin-button,
